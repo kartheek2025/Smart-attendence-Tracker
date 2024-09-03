@@ -1,0 +1,91 @@
+import face_recognition
+import cv2
+import numpy as np
+import csv
+import os
+from datetime import datetime
+
+# Initialize the video capture
+video_capture = cv2.VideoCapture(0)
+
+# Load images and get face encodings
+bhanu_image = face_recognition.load_image_file("photos/bhanu.jpg")
+bhanu_encoding = face_recognition.face_encodings(bhanu_image)[0]
+
+kartheek_image = face_recognition.load_image_file("photos/kartheek.jpg")
+kartheek_encoding = face_recognition.face_encodings(kartheek_image)[0]
+
+keerthi_image = face_recognition.load_image_file("photos/keerthi.jpg")
+keerthi_encoding = face_recognition.face_encodings(keerthi_image)[0]
+
+raju_image = face_recognition.load_image_file("photos/raju.jpg")
+raju_encoding = face_recognition.face_encodings(raju_image)[0]
+
+# Known face encodings and names
+known_face_encodings = [
+    bhanu_encoding,
+    kartheek_encoding,
+    keerthi_encoding,
+    raju_encoding
+]
+
+known_face_names = ["bhanu", "kartheek", "keerthi", "raju"]
+
+# Initialize some variables
+students = known_face_names.copy()
+face_locations = []
+face_encodings = []
+face_names = []
+s = True
+
+# Get the current date
+now = datetime.now()
+current_date = now.strftime("%Y-%m-%d")
+
+# Open a CSV file for writing attendance
+f = open(current_date + '.csv', 'w+', newline='')
+lnwriter = csv.writer(f)
+
+while True:
+    # Capture frame-by-frame
+    _, frame = video_capture.read()
+    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+    
+    # Convert the image from BGR to RGB
+    rgb_small_frame = small_frame[:, :, ::-1]
+
+    if s:
+        # Find all the faces and face encodings in the current frame
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        
+        face_names = []
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            name = ""
+            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            
+            if matches[best_match_index]:
+                name = known_face_names[best_match_index]
+                
+            face_names.append(name)
+            
+            if name in known_face_names:
+                if name in students:
+                    students.remove(name)
+                    print(students)
+                    current_time = datetime.now().strftime("%H-%M-%S")  # Capture current time inside the loop
+                    lnwriter.writerow([name, current_time])
+    
+    # Display the resulting frame
+    cv2.imshow('Attendance System', frame)
+    
+    # Break the loop when 'q' key is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release handle to the webcam and close CSV file
+video_capture.release()
+cv2.destroyAllWindows()
+f.close()
